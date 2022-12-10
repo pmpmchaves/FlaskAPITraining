@@ -44,6 +44,9 @@ class Video(Resource):
     @marshal_with(resource_fields) #to serialize response
     def put(self, video_id):
         args = video_put_args.parse_args() #dictionary that stores all the values we submit (put request)
+        result = VideoModel.query.filter_by(id=video_id).first() #to check if the video_id we want to add/put to the database already exists. If it does, we need to make sure the code does not break
+        if result: #if the video_id already exists, we will display an error message using abort method. This way, the code does not break
+            abort(409, message ="Video ID taken...") 
         video = VideoModel(id=video_id,name=args["name"],views=args["views"],likes=args["likes"]) #this creates a new instance of the VideoModel class, i.e. adds new information to our database
         db.session.add(video) #temporarily adding the created video into the database
         db.session.commit() #permanently adding the created video into the database. Similar to GIT, "video" does not go inside the commit command
