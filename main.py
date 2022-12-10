@@ -21,23 +21,33 @@ class VideoModel(db.Model):
 
 #db.create_all() #to create the database, only do it once! That's why it was commented out...
 
-video_put_args = reqparse.RequestParser()
+video_put_args = reqparse.RequestParser() #argument parser to define what the user MUST supply when adding a new video to the database
 video_put_args.add_argument("name", type=str, help= "Name of the video is required", required=True)
 video_put_args.add_argument("views", type=int, help= "Views of the video is required", required=True)
 video_put_args.add_argument("likes", type=int, help= "Likes of the video is required", required=True)
+
+video_update_args = reqparse.RequestParser() #argument parser to define what the user CAN supply when changing an existing video_id in the database.
+                                            #Here we have required=False since the user may want to change only one element of the video characteristics
+                                            #IMPORTANT: The argument parser will fill the video_update_args dictionary with a None value for "name", "views" or "likes" if no data is passed for those elements. Example, if "views" is changed to 20000 but no "name" or "likes" update is given, we get: {"name":None, "views":20000,"likes":None}
+video_update_args.add_argument("name", type=str, help= "Name of the video is required", required=False)
+video_update_args.add_argument("views", type=int, help= "Views of the video is required", required=False)
+video_update_args.add_argument("likes", type=int, help= "Likes of the video is required", required=False)
+
 
 resource_fields = {
                     "id":fields.Integer,
                     "name":fields.String,
                     "views":fields.Integer,
                     "likes":fields.Integer
-                } #this dictionary defines the fields from the VideoModel that we want to return 
+                } #It is a dictionary defines the fields from the VideoModel that we want to return 
 
 class Video(Resource):
     #method to get video information
     @marshal_with(resource_fields) #marshal_with takes the output from return and serializes it in a JSON format according to the resource_fields to make sure what we return is a serialized object and can be read by the get request
     def get(self, video_id):
         result = VideoModel.query.filter_by(id=video_id).first() #to search for the required video using its video_id on the VideoModel database. It searches and returns the first instance it finds.
+        if not result: #if there is no video_id in the database that matches our get request, we need to prevent the model from crashing
+            abort(404, message = "Could not find video with that ID")
         return result
 
     #method to submit video information
@@ -51,6 +61,20 @@ class Video(Resource):
         db.session.add(video) #temporarily adding the created video into the database
         db.session.commit() #permanently adding the created video into the database. Similar to GIT, "video" does not go inside the commit command
         return video, 201
+
+    @marshal_with(resource_fields)
+    def patch(self, video_id): #method to update an element (e.g. views, likes) of a given video
+        args = video_update_args.parse_args() #we use the update arguments passed by the user
+        result = VideoModel.query.filter_by(id=video_id).first() #first we check if the video exists in the database
+        if not result: #if the video_ID does not exist in the database, we abort
+            abort(404, message = "Video does not exist, cannot update...")
+        elements = [name, views, likes] 
+        for element in elements:
+            if str(element) in args:
+                result.element = args[f"element"] #if the video does exist, we check which elements were requested to be changed in the database for that video_id and update that database instance with the new values
+        db.session.commit() #No need to type db.session.add() since the changes are automatically temporarily updated in the database. However, we do need to commit those changes to make them permanent
+        return result
+
 
     #method to delete an existing video
     def delete(self, video_id):
