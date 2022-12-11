@@ -73,10 +73,13 @@ class Video(Resource):
         if not result: #if the video_ID does not exist in the database, we abort
             abort(404, message = "Video does not exist, cannot update...")
 
-        elements = [name, views, likes] 
-        for element in elements:
-            if args[f"{element}"]: #When we write if args[f"element"], we are testing if the element exists inside the video_update_args parser dictionary exists (meaning it is not None). Look at the IMPORTANT note written on the video_update_args parser in line 31 to understand better.
-                result.element = args[f"{element}"] #if the video does exist, we check which elements were requested to be changed in the database for that video_id and update that database instance with the new values
+        if args["name"]: #When we write if args["name"], we are testing if the element inside the video_update_args parser dictionary is NOT None. Look at the IMPORTANT note written on the video_update_args parser in line 31 to understand better.
+            result.name = args["name"] #if the video does exist, we check which elements were requested to be changed in the database for that video_id and update that database instance with the new values
+        if args["likes"]:                
+            result.likes = args["likes"]
+        if args["views"]:
+            result.views = args["views"]
+
         db.session.commit() #No need to type db.session.add() since the changes are automatically temporarily updated in the database. However, we do need to commit those changes to make them permanent
         
         return result
